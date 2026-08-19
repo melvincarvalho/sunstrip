@@ -72,11 +72,14 @@ const B = {
   best: Number(localStorage.getItem('sunstrip.best') || 0),
   titleT: 0,
   overT: 0,
+  hintT: 0,           // fading touch-zone overlay at race start
   finalScore: 0,
   seed: 1,
 };
 
 const input = { steer: 0, brake: false, accel: true, left: false, right: false };
+const TOUCH = matchMedia('(pointer: coarse)').matches
+  || new URLSearchParams(location.search).has('touch');
 
 // ---------------------------------------------------------------------------
 // audio — WebAudio synth: engine, sfx, and three radio stations
@@ -98,9 +101,13 @@ const STATIONS = [
 ];
 
 function audioInit() {
-  if (AU.ctx) return;
+  if (AU.ctx) {
+    if (AU.ctx.state === 'suspended') AU.ctx.resume();
+    return;
+  }
   const A = new (window.AudioContext || window.webkitAudioContext)();
   AU.ctx = A;
+  if (A.state === 'suspended') A.resume();
   AU.master = A.createGain(); AU.master.gain.value = B.muted ? 0 : 0.5;
   AU.master.connect(A.destination);
   const e1 = A.createOscillator(), e2 = A.createOscillator();
@@ -238,12 +245,23 @@ addEventListener('keyup', (e) => {
 });
 canvas.addEventListener('pointerdown', (e) => {
   audioInit();
-  if (B.mode === 'title') { startRace(); return; }
+  try { canvas.setPointerCapture(e.pointerId); } catch {}
+  if (B.mode === 'title') {
+    // tap the radio widget to tune; anywhere else starts the race
+    const r = canvas.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width * W, py = (e.clientY - r.top) / r.height * H;
+    if (px >= 62 && px <= 392 && py >= H - 148 && py <= H - 40) {
+      B.radio = (B.radio + 1) % STATIONS.length; sfx('tune'); return;
+    }
+    startRace(); return;
+  }
   if (B.mode === 'over' && B.overT > 1) { B.mode = 'title'; B.titleT = 0; musicStop(); return; }
   touchSteer(e);
 });
 canvas.addEventListener('pointermove', (e) => { if (e.buttons) touchSteer(e); });
-canvas.addEventListener('pointerup', () => { input.left = input.right = input.brake = false; });
+function touchClear() { input.left = input.right = input.brake = false; }
+canvas.addEventListener('pointerup', touchClear);
+canvas.addEventListener('pointercancel', touchClear);
 function touchSteer(e) {
   const r = canvas.getBoundingClientRect();
   const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
@@ -256,6 +274,7 @@ function startRace() {
   B.mode = 'race';
   B.banner = { text: STAGES.coast.name, sub: 'STAGE 1', t: 2.2 };
   B.bgCurve = 0;
+  B.hintT = TOUCH ? 4 : 0;
   musicStart(B.radio);
 }
 
@@ -289,6 +308,7 @@ function update(dt) {
   B.bounce += dt * (4 + frac * 26);
   if (B.banner) { B.banner.t -= dt; if (B.banner.t <= 0) B.banner = null; }
   if (B.toast) { B.toast.t -= dt; if (B.toast.t <= 0) B.toast = null; }
+  if (B.hintT > 0) B.hintT -= dt;
   if (B.shakeT > 0) B.shakeT -= dt;
   engineUpdate(frac);
 }
@@ -894,6 +914,21 @@ function drawHUD() {
     ctx.globalAlpha = 1;
   }
 
+  // touch-zone hints: shown for the first seconds of a run, then gone
+  if (B.hintT > 0) {
+    ctx.globalAlpha = Math.min(1, B.hintT / 1.2);
+    ctx.fillStyle = 'rgba(240,244,250,0.10)';
+    ctx.fillRect(0, 0, W * 0.4, H * 0.8);
+    ctx.fillRect(W * 0.6, 0, W * 0.4, H * 0.8);
+    ctx.fillStyle = 'rgba(232,58,48,0.14)';
+    ctx.fillRect(0, H * 0.8, W, H * 0.2);
+    hudText('◄', W * 0.2, H * 0.52, 76, '#f4f6fa', 'center');
+    hudText('►', W * 0.8, H * 0.52, 76, '#f4f6fa', 'center');
+    hudText('HOLD SIDES TO STEER', W / 2, H * 0.52, 26, '#f4f6fa', 'center');
+    hudText('BRAKE', W / 2, H * 0.94, 28, '#ffc4bc', 'center');
+    ctx.globalAlpha = 1;
+  }
+
   if (B.banner) {
     const a = Math.min(1, B.banner.t * 2, (2.4 - B.banner.t) * 3);
     ctx.globalAlpha = Math.max(0, a);
@@ -957,7 +992,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(10,14,26,0.55)';
   ctx.beginPath(); ctx.roundRect(cx - 280, py - 40, 560, 62, 12); ctx.fill();
   if (Math.floor(B.titleT * 1.4) % 2 === 0) {
-    hudText('PRESS ENTER TO DRIVE', cx, py + 5, 32, '#ffffff', 'center');
+    hudText(TOUCH ? 'TAP TO DRIVE' : 'PRESS ENTER TO DRIVE', cx, py + 5, 32, '#ffffff', 'center');
   }
 
   // radio: compact widget, bottom-left
@@ -967,14 +1002,15 @@ function drawTitle() {
   hudText('RADIO  ◄ ►', rx + 165, ry2 + 30, 16, '#9fb4cc', 'center');
   hudText(STATIONS[B.radio].name, rx + 165, ry2 + 66, 23, '#ffd84a', 'center');
   ctx.font = '600 13px system-ui'; ctx.fillStyle = '#9fb4cc'; ctx.textAlign = 'center';
-  ctx.fillText('TUNE WITH ◄ ► BEFORE YOU DRIVE', rx + 165, ry2 + 92);
+  ctx.fillText(TOUCH ? 'TAP HERE TO TUNE BEFORE YOU DRIVE' : 'TUNE WITH ◄ ► BEFORE YOU DRIVE', rx + 165, ry2 + 92);
 
   // controls on a full-width bottom scrim
   const csg = ctx.createLinearGradient(0, H - 56, 0, H);
   csg.addColorStop(0, 'rgba(8,10,20,0)'); csg.addColorStop(1, 'rgba(8,10,20,0.72)');
   ctx.fillStyle = csg; ctx.fillRect(0, H - 56, W, 56);
   ctx.font = '600 15px system-ui'; ctx.fillStyle = '#eef2f8'; ctx.textAlign = 'center';
-  ctx.fillText('◄ ► STEER · ▼ BRAKE · AUTO-ACCEL · MUTE (M)', cx, H - 18);
+  ctx.fillText(TOUCH ? 'HOLD SIDES TO STEER · BOTTOM EDGE TO BRAKE · AUTO-ACCEL'
+                     : '◄ ► STEER · ▼ BRAKE · AUTO-ACCEL · MUTE (M)', cx, H - 18);
 
   if (B.best > 0) hudText('BEST ' + String(B.best).padStart(7, '0'), W - 36, H - 28, 20, '#ffd84a', 'right');
 }
@@ -995,7 +1031,7 @@ function drawOver() {
   hudText('BEST   ' + String(B.best).padStart(7, '0'), cx, H * 0.60, 28, B.finalScore >= B.best ? '#7ce88a' : '#9fb4cc', 'center');
   if (B.finalScore >= B.best && B.finalScore > 0) hudText('NEW RECORD', cx, H * 0.665, 22, '#7ce88a', 'center');
   if (B.overT > 1 && Math.floor(B.overT * 1.6) % 2 === 0) {
-    hudText('ENTER — BACK TO TITLE', cx, H * 0.80, 26, '#ffffff', 'center');
+    hudText(TOUCH ? 'TAP — BACK TO TITLE' : 'ENTER — BACK TO TITLE', cx, H * 0.80, 26, '#ffffff', 'center');
   }
 }
 
@@ -1079,6 +1115,7 @@ function runShot(name) {
   for (const c of S.traffic) c.z = (c.z + S.z) % S.stage.length;
   if (cfg.pos === 'crest') { S.z = (findCrestSeg(S.stage) - 55) * CFG.segLen; steps = 45; }
   B.S = S; B.mode = 'race';
+  if (TOUCH) B.hintT = 3;
   const inp = { steer: 0, brake: false, accel: true, left: false, right: false };
   for (let i = 0; i < steps; i++) {
     const seg = segmentAt(S.stage, S.z);
