@@ -16,42 +16,42 @@ const PAL = {
   coast: {
     sky: ['#5db4e8', '#a8dcf0', '#ffe8b8'], sun: '#fff4c8', sunGlow: '#ffd98c',
     sea: ['#5aa8cc', '#7fc2dc'], hills: ['#78b8d4', '#a2d0e2'],
-    grass: ['#57a05e', '#519a58'], road: ['#696a70', '#636469'],
+    grass: ['#5aa561', '#4c9153'], road: ['#6b6c72', '#616267'],
     rumble: ['#f0f0f0', '#d84840'], lane: '#f4f4f4', fog: '#cfe8f2',
     cloud: '#eef6fb',
   },
   palms: {
     sky: ['#4aa8e0', '#98d4ec', '#ffe0a8'], sun: '#fff8d8', sunGlow: '#ffe0a0',
     sea: ['#4f9fc4', '#77bcd6'], hills: ['#6cacc8', '#96c8da'],
-    grass: ['#519c5a', '#4b9554'], road: ['#66676d', '#606166'],
+    grass: ['#54a15d', '#468d4f'], road: ['#68696f', '#5e5f64'],
     rumble: ['#f0f0f0', '#d84840'], lane: '#f4f4f4', fog: '#c8e4f0',
     cloud: '#e8f2f8',
   },
   canyon: {
     sky: ['#ff9e5e', '#ffc888', '#ffedc0'], sun: '#fff0b0', sunGlow: '#ffb870',
     sea: null, hills: ['#b05838', '#cf7850'], shadow: '#6e2f1e',
-    grass: ['#c07a4a', '#b97448'], road: ['#6e665e', '#68615a'],
+    grass: ['#c47d4b', '#b16e40'], road: ['#70685f', '#655e56'],
     rumble: ['#f4e8d0', '#b84028'], lane: '#f4ead0', fog: '#ffd8a8',
     cloud: '#f7e6c2',
   },
   pines: {
     sky: ['#88c4dc', '#c4e4e8', '#f0f4d8'], sun: '#fffce0', sunGlow: '#e8f0c0',
     sea: null, hills: ['#4a7c5c', '#6e9c7e'],
-    grass: ['#3f7d4a', '#3a7645'], road: ['#63646a', '#5d5e64'],
+    grass: ['#41814d', '#37703f'], road: ['#65666c', '#5b5c62'],
     rumble: ['#e8e8e8', '#c84838'], lane: '#ececec', fog: '#d8e8dc',
     cloud: '#dfe8e4',
   },
   dusk: {
     sky: ['#241f52', '#68387c', '#e8586e'], sun: '#ffb058', sunGlow: '#ff7a5c',
     sea: null, hills: ['#241f48', '#332a58'], city: true,
-    grass: ['#2c3046', '#282c41'], road: ['#585a68', '#525462'],
-    rumble: ['#c8c8d8', '#a83848'], lane: '#d8d8e4', fog: '#4c3868',
+    grass: ['#2b2947', '#22203a'], road: ['#5f5a74', '#56516a'],
+    rumble: ['#d8d4e6', '#b04058'], lane: '#eeeaf6', fog: '#4c3868',
     cloud: '#6a4a80',
   },
   desert: {
     sky: ['#eaa64e', '#ffd98c', '#ffedbe'], sun: '#fff8e0', sunGlow: '#ffd98c',
     sea: null, hills: ['#c8a468', '#dcbc84'],
-    grass: ['#c9a15e', '#c39b59'], road: ['#71695f', '#6b635a'],
+    grass: ['#cda662', '#bd9351'], road: ['#736b60', '#686156'],
     rumble: ['#f8f0d8', '#c05030'], lane: '#f8f2dc', fog: '#f4e0b0',
     cloud: '#f7e6c2',
   },
@@ -346,27 +346,36 @@ function drawBackground(pal, horizonY, seedBase, stageNo) {
   glow.addColorStop(0, pal.sunGlow + 'cc'); glow.addColorStop(1, pal.sunGlow + '00');
   ctx.fillStyle = glow; ctx.fillRect(sunX - R * 3, sunY - R * 3, R * 6, R * 6);
   ctx.save();
-  ctx.beginPath(); ctx.arc(sunX, sunY, R, 0, Math.PI * 2);
-  ctx.rect(0, 0, W, horizonY + 1); ctx.clip('evenodd');
-  ctx.restore();
-  ctx.save();
   ctx.beginPath(); ctx.arc(sunX, sunY, R, 0, Math.PI * 2); ctx.clip();
   ctx.fillStyle = pal.sun; ctx.fillRect(sunX - R, sunY - R, R * 2, R * 2);
+  // bold sega bands across the visible part of the disc, thickening downward
   ctx.fillStyle = pal.sky[1];
-  for (let i = 0; i < 4; i++) ctx.fillRect(sunX - R, sunY + R * 0.12 + i * (R * 0.22), R * 2, 6 + i * 4);
+  const visTop = sunY - R, visH = Math.min(sunY + R, horizonY + 46) - visTop;
+  let bandY = visTop + visH * 0.38, bandH = Math.max(4, visH * 0.045);
+  for (let i = 0; i < 7 && bandY < sunY + R; i++) {
+    ctx.fillRect(sunX - R, bandY, R * 2, bandH);
+    bandY += bandH + visH * Math.max(0.04, 0.12 - i * 0.012);
+    bandH *= 1.4;
+  }
   ctx.restore();
 
   // clouds — shapes and placement vary per stage, tinted to the biome light
-  ctx.fillStyle = pal.cloud + 'bb';
   const cr = makeRng(7 + (seedBase || 0));
   for (let i = 0; i < 6; i++) {
     const cx = ((cr() * 1.6 * W - B.bgCurve * (0.5 + cr() * 0.4)) % (W + 300) + W + 300) % (W + 300) - 150;
     const cy = 36 + cr() * (horizonY * 0.42);
     const s = 26 + cr() * 62;
+    const bump = cr() < 0.5;
+    ctx.fillStyle = pal.cloud + 'c4';
     ctx.beginPath();
     ctx.ellipse(cx, cy, s, s * (0.24 + cr() * 0.14), 0, 0, Math.PI * 2);
     ctx.ellipse(cx + s * (0.5 + cr() * 0.3), cy + 4, s * 0.7, s * 0.24, 0, 0, Math.PI * 2);
-    if (cr() < 0.5) ctx.ellipse(cx - s * 0.55, cy + 6, s * 0.5, s * 0.2, 0, 0, Math.PI * 2);
+    if (bump) ctx.ellipse(cx - s * 0.55, cy + 6, s * 0.5, s * 0.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // sun-lit top edge keeps clouds from reading as grey slugs
+    ctx.fillStyle = '#ffffff55';
+    ctx.beginPath();
+    ctx.ellipse(cx - s * 0.12, cy - s * 0.10, s * 0.62, s * 0.13, 0, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -420,6 +429,7 @@ function drawBackground(pal, horizonY, seedBase, stageNo) {
   }
 
   // sea band with shimmer
+  const sunOut = { x: sunX, y: sunY, R };
   if (pal.sea) {
     const sg = ctx.createLinearGradient(0, horizonY, 0, horizonY + 40);
     sg.addColorStop(0, pal.sea[0]); sg.addColorStop(1, pal.sea[1]);
@@ -431,6 +441,7 @@ function drawBackground(pal, horizonY, seedBase, stageNo) {
       ctx.fillRect(sx, horizonY + 4 + sr() * 34, 14 + sr() * 40, 2);
     }
   }
+  return sunOut;
 }
 
 // ---------------------------------------------------------------------------
@@ -447,28 +458,54 @@ function drawSprite(kind, x, y, s, pal, extra) {
       const v = Math.abs(extra || 1) % 1;         // 0..1 variant
       const sc = 0.85 + v * 0.4;
       ctx.scale(sc * lean, sc);
-      ctx.strokeStyle = '#6a4a34'; ctx.lineWidth = 30;
-      ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(34, -230, 78, -420); ctx.stroke();
-      // trunk ring notches
-      ctx.strokeStyle = '#5a3e2c'; ctx.lineWidth = 8;
-      for (let i = 1; i < 5; i++) {
-        const t = i / 5;
-        const nx = 2 * (1 - t) * t * 34 + t * t * 78, ny = -(2 * (1 - t) * t * 230 + t * t * 420);
-        ctx.beginPath(); ctx.moveTo(nx - 16, ny); ctx.lineTo(nx + 16, ny); ctx.stroke();
+      const tipX = 78, tipY = -420;
+      // trunk: tapered and curved, darker toward the crown
+      ctx.beginPath();
+      ctx.moveTo(-19, 0);
+      ctx.quadraticCurveTo(16, -230, tipX - 9, tipY);
+      ctx.lineTo(tipX + 9, tipY);
+      ctx.quadraticCurveTo(52, -230, 23, 0);
+      ctx.closePath();
+      const tg = ctx.createLinearGradient(0, 0, 80, tipY);
+      tg.addColorStop(0, '#7a5840'); tg.addColorStop(1, '#54382a');
+      ctx.fillStyle = tg; ctx.fill();
+      // trunk ring notches, narrowing with the taper
+      ctx.strokeStyle = 'rgba(42,26,18,0.45)'; ctx.lineWidth = 7;
+      for (let i = 1; i < 6; i++) {
+        const t = i / 6;
+        const nx = 2 * (1 - t) * t * 34 + t * t * tipX, ny = -(2 * (1 - t) * t * 230 + t * t * 420);
+        const hw = 15 - t * 6;
+        ctx.beginPath(); ctx.moveTo(nx - hw, ny); ctx.lineTo(nx + hw, ny); ctx.stroke();
       }
-      // fronds: lit tops, dark undersides
-      for (const [col, lw, dy] of [['#1e6b35', 40, 8], ['#3fa554', 26, 0]]) {
-        ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.lineCap = 'round';
-        for (let i = 0; i < 7; i++) {
-          const a = Math.PI * (0.08 + (i / 6) * 0.84);
-          const fx = Math.cos(a) * 190, fy = -Math.sin(a) * 120;
-          ctx.beginPath();
-          ctx.moveTo(78, -420 + dy);
-          ctx.quadraticCurveTo(78 + fx * 0.55, -420 + fy - 60 + dy, 78 + fx, -420 + fy + 70 + dy);
-          ctx.stroke();
-        }
+      // fronds: tapered filled blades that arch out and droop at the tip
+      const frond = (a, len, col, droop) => {
+        const fx = Math.cos(a) * len, fy = -Math.sin(a) * len * 0.60;
+        const mx = tipX + fx * 0.52, my = tipY + fy - len * 0.24;
+        const ex = tipX + fx, ey = tipY + fy + droop;
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.moveTo(tipX, tipY + 4);
+        ctx.quadraticCurveTo(mx, my - 20, ex, ey);
+        ctx.quadraticCurveTo(mx + fx * 0.06, my + 34, tipX, tipY + 30);
+        ctx.closePath(); ctx.fill();
+      };
+      for (let i = 0; i < 7; i++) {           // dark underside layer
+        const a = Math.PI * (0.02 + (i / 6) * 0.96);
+        frond(a, 208 + (i % 2) * 28, '#1d5c30', 100);
       }
-      ctx.lineCap = 'butt';
+      for (let i = 0; i < 6; i++) {           // mid layer
+        const a = Math.PI * (0.10 + (i / 5) * 0.80);
+        frond(a, 176 + (i % 2) * 22, '#3f9e52', 72);
+      }
+      for (let i = 0; i < 3; i++) {           // sunlit crown
+        const a = Math.PI * (0.24 + (i / 2) * 0.50);
+        frond(a, 138, '#5cb868', 46);
+      }
+      // coconut cluster at the crown
+      ctx.fillStyle = '#4a3020';
+      for (const [ox, oy] of [[-16, 18], [8, 26], [28, 14]]) {
+        ctx.beginPath(); ctx.arc(tipX + ox, tipY + oy, 13, 0, Math.PI * 2); ctx.fill();
+      }
       break;
     }
     case 'pine': {
@@ -708,7 +745,7 @@ function drawRoad() {
 
   const farP = project(camX, playerY, S.z + CFG.drawDist * CFG.segLen * 0.9, camX, camY, S.z, W, H);
   const horizonY = Math.min(H - 80, Math.max(120, farP.y));
-  drawBackground(pal, horizonY, S.stage.def.seed, S.stageNo);
+  const sun = drawBackground(pal, horizonY, S.stage.def.seed, S.stageNo);
 
   // ground fill below the horizon
   ctx.fillStyle = pal.grass[0];
@@ -770,6 +807,13 @@ function drawRoad() {
     maxY = p.y;
     prev = { p, idx };
   }
+
+  // warm bounce: the sun kisses the ground and tarmac beneath it
+  const warm = ctx.createRadialGradient(sun.x, horizonY + 4, 8, sun.x, horizonY + 4, sun.R * 3.4);
+  warm.addColorStop(0, pal.sunGlow + (pal.city ? '46' : '26'));
+  warm.addColorStop(1, pal.sunGlow + '00');
+  ctx.fillStyle = warm;
+  ctx.fillRect(0, horizonY, W, sun.R * 3.4);
 
   // near-field ground shading so the foreground never reads as a flat slab
   const fgg = ctx.createLinearGradient(0, H * 0.74, 0, H);
@@ -838,20 +882,30 @@ function drawRoad() {
     }
   }
 
-  // speed streaks pull the corners in at full attack
+  // speed: edge-anchored motion streaks tapering toward the vanishing point,
+  // plus a breathing vignette that pulls the corners in at full attack
   if (frac > 0.68) {
-    const sa = (frac - 0.68) / 0.32 * 0.34;
-    ctx.strokeStyle = `rgba(255,255,255,${sa.toFixed(3)})`;
-    ctx.lineWidth = 3;
-    const STREAKS = [
-      [200, 0.10, 30], [160, 0.34, 10], [230, 0.58, 20], [180, 0.82, 26],
-      [W - 200, 0.14, -30], [W - 160, 0.38, -10], [W - 230, 0.62, -20], [W - 180, 0.86, -26],
+    const t = (frac - 0.68) / 0.32;
+    const vx = W / 2, vy = horizonY + 30;
+    ctx.fillStyle = `rgba(255,255,255,${(0.20 * t).toFixed(3)})`;
+    const ANCH = [
+      [0, H * 0.58], [0, H * 0.82], [W * 0.10, H],
+      [W, H * 0.62], [W, H * 0.86], [W * 0.90, H],
     ];
-    const band0 = horizonY + 36, band1 = H - 120;
-    for (const [x1, ft, slope] of STREAKS) {
-      const y1 = band0 + (band1 - band0) * ft;
-      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 - Math.sign(x1 - W / 2) * (150 + 120 * ft), y1 + slope); ctx.stroke();
+    for (const [ax, ay] of ANCH) {
+      const dxs = vx - ax, dys = vy - ay;
+      const len = 0.14 + 0.09 * t;
+      const ex = ax + dxs * len, ey = ay + dys * len;
+      const nl = Math.hypot(dys, dxs) || 1;
+      const nx = -dys / nl * 4.5, ny = dxs / nl * 4.5;
+      ctx.beginPath();
+      ctx.moveTo(ax + nx, ay + ny); ctx.lineTo(ax - nx, ay - ny); ctx.lineTo(ex, ey);
+      ctx.closePath(); ctx.fill();
     }
+    const vg = ctx.createRadialGradient(W / 2, H * 0.58, H * 0.55, W / 2, H * 0.58, H * 1.08);
+    vg.addColorStop(0, 'rgba(10,12,22,0)');
+    vg.addColorStop(1, `rgba(10,12,22,${(0.22 * t).toFixed(3)})`);
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
   }
 }
 
@@ -884,9 +938,9 @@ function drawHUD() {
   hudText(STAGES[S.stageKey].name, 36, 60, 26, '#f4f6fa');
 
   // speed cluster: feathered corner scrim, baseline-aligned unit, safe margins
-  const sg = ctx.createRadialGradient(W - 80, H - 50, 30, W - 80, H - 50, 400);
-  sg.addColorStop(0, 'rgba(8,10,20,0.62)'); sg.addColorStop(1, 'rgba(8,10,20,0)');
-  ctx.fillStyle = sg; ctx.fillRect(W - 480, H - 260, 480, 260);
+  const sg = ctx.createRadialGradient(W - 90, H - 48, 20, W - 90, H - 48, 280);
+  sg.addColorStop(0, 'rgba(8,10,20,0.5)'); sg.addColorStop(1, 'rgba(8,10,20,0)');
+  ctx.fillStyle = sg; ctx.fillRect(W - 380, H - 180, 380, 180);
   hudText(String(kmh(S.speed)), W - 118, H - 30, 58, '#f4f6fa', 'right');
   hudText('KM/H', W - 30, H - 34, 23, '#c3d2e8', 'right');
 
@@ -949,14 +1003,26 @@ function drawHUD() {
 // title & game-over screens
 function drawTitle() {
   const pal = PAL.coast;
-  drawBackground(pal, H * 0.58, STAGES.coast.seed, 1.6);
+  const sun = drawBackground(pal, H * 0.58, STAGES.coast.seed, 1.9);
   const cx = W / 2, hy = H * 0.58;
-  poly([[0, H], [W, H], [cx + 30, hy], [cx - 30, hy]], '#63646a');
-  poly([[cx - 26, H], [cx + 26, H], [cx + 2, hy], [cx - 2, hy]], '#f4f4f4');
-  poly([[0, H], [-W * 0.2, H], [cx - 34, hy], [cx - 30, hy]], '#d84840');
-  poly([[W, H], [W * 1.2, H], [cx + 34, hy], [cx + 30, hy]], '#d84840');
   poly([[0, H], [cx - 30, hy], [0, hy]], pal.grass[0]);
   poly([[W, H], [cx + 30, hy], [W, hy]], pal.grass[0]);
+  // perspective mow-stripes fan out from the road's vanishing point
+  for (const [y0, y1] of [[hy + 36, hy + 64], [hy + 118, hy + 172], [hy + 260, hy + 356]]) {
+    poly([[cx - 32, hy], [0, y1], [0, y0]], pal.grass[1]);
+    poly([[cx + 32, hy], [W, y0], [W, y1]], pal.grass[1]);
+  }
+  // warm bounce under the sun
+  const warm = ctx.createRadialGradient(sun.x, hy + 4, 8, sun.x, hy + 4, sun.R * 3.2);
+  warm.addColorStop(0, pal.sunGlow + '2a'); warm.addColorStop(1, pal.sunGlow + '00');
+  ctx.fillStyle = warm; ctx.fillRect(0, hy, W, sun.R * 3.2);
+  // road with slim kerbs and centre line
+  poly([[-90, H], [W + 90, H], [cx + 34, hy], [cx - 34, hy]], '#d84840');
+  poly([[0, H], [W, H], [cx + 30, hy], [cx - 30, hy]], '#63646a');
+  poly([[cx - 26, H], [cx + 26, H], [cx + 2, hy], [cx - 2, hy]], '#f4f4f4');
+  // foreground palms frame the field
+  drawSprite('palm', W * 0.115, H * 0.985, 0.46, pal, 0.65);
+  drawSprite('palm', W * 0.905, H * 1.01, 0.54, pal, -0.3);
 
   // chrome wordmark: hard horizon band, offset drop shadow, opened tracking
   const ty = H * 0.285;
@@ -991,6 +1057,8 @@ function drawTitle() {
   const py = H * 0.70;
   ctx.fillStyle = 'rgba(10,14,26,0.55)';
   ctx.beginPath(); ctx.roundRect(cx - 280, py - 40, 560, 62, 12); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,216,74,0.55)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.roundRect(cx - 280, py - 40, 560, 62, 12); ctx.stroke();
   if (Math.floor(B.titleT * 1.4) % 2 === 0) {
     hudText(TOUCH ? 'TAP TO DRIVE' : 'PRESS ENTER TO DRIVE', cx, py + 5, 32, '#ffffff', 'center');
   }
@@ -999,6 +1067,8 @@ function drawTitle() {
   const rx = 62, ry2 = H - 148;
   ctx.fillStyle = 'rgba(10,14,26,0.74)';
   ctx.beginPath(); ctx.roundRect(rx, ry2, 330, 108, 14); ctx.fill();
+  ctx.strokeStyle = 'rgba(159,180,204,0.4)'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.roundRect(rx + 0.5, ry2 + 0.5, 329, 107, 14); ctx.stroke();
   hudText('RADIO  ◄ ►', rx + 165, ry2 + 30, 16, '#9fb4cc', 'center');
   hudText(STATIONS[B.radio].name, rx + 165, ry2 + 66, 23, '#ffd84a', 'center');
   ctx.font = '600 13px system-ui'; ctx.fillStyle = '#9fb4cc'; ctx.textAlign = 'center';
