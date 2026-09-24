@@ -13,7 +13,7 @@ trap "kill $SRV 2>/dev/null" EXIT
 sleep 0.5
 
 BROWSER="${BROWSER:-chromium}"
-for shot in title hero palms canyon pines dusk desert fork traffic; do
+for shot in title help hero palms canyon pines dusk desert autumn harbor fields volcano snow bay metro savanna lastlight fork traffic results pause touch spin1 wreck2; do
   "$BROWSER" --headless --disable-gpu --hide-scrollbars \
     --window-size=1280,720 --virtual-time-budget=9000 \
     --screenshot="$OUT/$shot.png" \
